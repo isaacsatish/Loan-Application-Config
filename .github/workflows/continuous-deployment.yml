@@ -1,0 +1,60 @@
+name: Maven build & Docker build and push
+
+on:
+  push:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      
+      - name: Set SHA8
+        run: echo ::set-env name=SHA8::$(git log --oneline -1 | awk '{print $1}')
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1.4.2
+        with:
+          java-version: '11.0.8'
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+
+      - name: Build with Maven
+        run: mvn clean install
+          
+      - name: Docker Build 
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+          DOCKER_REGISTRY_HOST: ${{ secrets.DOCKER_REGISTRY_HOST }}
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+          run: |
+            docker login --username ${DOCKER_USER} --password ${DOCKER_PASS}
+            docker build -t ${DOCKER_REPO}/guestbook:${SHA8} -f Dockerfile .
+            docker tag ${DOCKER_REPO}/guestbook:${SHA8} ${DOCKER_REGISTRY_HOST}/${DOCKER_REPO}/guestbook:${SHA8}
+            docker push ${DOCKER_REPO}/guestbook:${SHA8}
+      - name: Trigger Release Template 
+        env:
+          XLR_USER: ${{ secrets.XLR_USER }}
+          XLR_PASS: ${{ secrets.XLR_PASS }}
+          XLR_URL: ${{ secrets.XLR_URL }}   
+        run: |
+          cd argocd/helloworld
+          sed -i "s/PLACEHOLDER/$SHA8/g" start-release.yaml
+          curl -LO https://dist.xebialabs.com/public/xl-cli/22.0.0/linux-amd64/xl
+          chmod +x xl
+          ./xl apply --xl-release-url=$XLR_URL --xl-release-username=$XLR_USER --xl-release-password=$XLR_PASS --file start-release.yaml
+          echo `./xl version`
+          rm xl
