@@ -40,11 +40,11 @@ jobs:
           DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
           DOCKER_REGISTRY_HOST: ${{ secrets.DOCKER_REGISTRY_HOST }}
           DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
-          run: |
-            docker login --username ${DOCKER_USER} --password ${DOCKER_PASS}
-            docker build -t ${DOCKER_REPO}/guestbook:${SHA8} -f Dockerfile .
-            docker tag ${DOCKER_REPO}/guestbook:${SHA8} ${DOCKER_REGISTRY_HOST}/${DOCKER_REPO}/guestbook:${SHA8}
-            docker push ${DOCKER_REPO}/guestbook:${SHA8}
+        run: |
+          docker login --username ${DOCKER_USER} --password ${DOCKER_PASS}
+          docker build -t ${DOCKER_REPO}/guestbook:${SHA8} -f Dockerfile .
+          docker tag ${DOCKER_REPO}/guestbook:${SHA8} ${DOCKER_REGISTRY_HOST}/${DOCKER_REPO}/guestbook:${SHA8}
+          docker push ${DOCKER_REPO}/guestbook:${SHA8}
       - name: Trigger Release Template 
         env:
           XLR_USER: ${{ secrets.XLR_USER }}
